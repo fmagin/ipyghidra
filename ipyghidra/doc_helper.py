@@ -36,20 +36,18 @@ class DocHelper():
         if ghidra.util.SystemUtilities.isInDevelopmentMode():
             # For a git checkout `install_dir` will e.g. be `/home/user/gits` if the repo was cloned to `/home/user/gits/ghidra`
             # To prevent hardcoding assumptions like the repo folder being named "ghidra", we will search through the root directories instead
-            # Root directory should be `/home/user/gits/ghidra/Ghidra` in this case
+            # Root directory should be `/home/user/gits/ghidra/Ghidra` in this case.
             for root in layout.applicationRootDirs:
                 path = os.path.join(os.path.dirname(root.absolutePath), "build", "tmp", "GhidraAPI_javadoc.zip")
                 if os.path.exists(path):
                     return path
-                bridge.logger.warning("Could not find GhidraAPI_javadoc.zip at %s" % path)
             else:
-                bridge.logger.warning("No java doc found. Did you run `gradle zipJavadocs`?")
-                raise FileNotFoundError("Could not find doc at build/tmp/GhidraAPI_javadoc.zip")
+                raise FileNotFoundError(f"Could not find doc at {path}. Run `gradle zipJavadocs` to create it.")
         else:
             path = os.path.join(install_dir, "docs", "GhidraAPI_javadoc.zip")
             if os.path.exists(path):
                 return path
-            raise FileNotFoundError("Could not find doc at docs/GhidraAPI_javadoc.zip")
+            raise FileNotFoundError(f"Could not find doc at {path}")
 
 
 
