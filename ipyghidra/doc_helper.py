@@ -60,11 +60,17 @@ class DocHelper():
 
 
     def _get_class_and_method(self, obj):
-        """A collection of hacks and string extraction taken straigt from the original ghidradoc.py"""
+        """A collection of hacks and string extraction mostly taken from the original ghidradoc.py"""
         class_name = None
         method_name = None
-
+        is_class = False
         t = str(obj._bridged_get_type())
+
+        if "<type 'java.lang.Class'>" == t:
+            # this is a Class that isn't instantiated yet
+            # Get the string representation which should look like "<type 'ghidra.app.util.cparser.C.CParserUtils'>" again
+            is_class = True
+            t = str(obj)
 
         if "instancemethod" in t:
             # we have a callable. use obj._bridge_repr because the type info is useless
@@ -77,12 +83,23 @@ class DocHelper():
             if match is not None:
                 class_name = match.group(1)
 
-        return class_name, method_name
+        return class_name, method_name, is_class
 
 
     def get_doc(self, obj):
-        class_name, method_name = self._get_class_and_method(obj)
+        class_name, method_name, is_class = self._get_class_and_method(obj)
 
+        if is_class:
+            # A type/class was passed in. The most useful result to return is the doc of the constructor, but there might be multiple
+            # TODO: If a class doesn't implement it's own constructor we might still have to search for an implementation
+            jdoc = self.get_jsondoc(class_name)
+            constructor_doc = [c for c in jdoc['methods'] if c['name'] == "<init>"]
+            if len(constructor_doc) > 1:
+                # TODO: Find a sensible solution here.
+                # For now this does also just returns the first constructor
+                return constructor_doc[0]
+            else:
+                return constructor_doc[0]
 
         try_again = True
         while try_again:
