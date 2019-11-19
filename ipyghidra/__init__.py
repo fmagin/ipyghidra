@@ -1,0 +1,53 @@
+
+from IPython.core.magic import (Magics, magics_class, line_cell_magic)
+
+import ast
+
+
+import ghidra_bridge
+
+b = None
+
+
+class VarVisitor(ast.NodeVisitor):
+    """
+    Simple visitor that gathers all variable names from an AST
+    """
+    def __init__(self):
+        super(VarVisitor, self).__init__()
+        self.variables = set()
+
+    def visit_Name(self, node):
+        self.variables.add(node.id)
+
+
+
+@magics_class
+class GhidraBridgeMagics(Magics):
+
+    @line_cell_magic
+    def ghidra_eval(self, line, cell=None):
+        b = self.shell.user_ns['_bridge'] # type: ghidra_bridge.ghidra_bridge.GhidraBridge
+        # Of the cell is not none use it and ignore the line, otherwise use the line
+        code = cell or line
+        # Parse the AST and gather all variable names used
+        code_ast = ast.parse(code)
+        v = VarVisitor()
+        v.visit(code_ast)
+        # For every variable in the AST check if it is defined in the current user namespace and if yes get its actual value
+        vars = {var: self.shell.user_ns[var] for var in  v.variables if var in self.shell.user_ns}
+        # This mapping from variable names to objects can now be passed to remote_eval which makes sure those variables exist when evaluating on the server side
+        return b.bridge.remote_eval(code, **vars)
+
+def load_ipython_extension(ip):
+    global b
+    import ghidra_bridge
+    b = ghidra_bridge.GhidraBridge(namespace=ip.user_ns) # creates the bridge and loads the flat API into the global namespace
+
+    ip.user_ns.update({'_bridge': b})
+    ip.register_magics(GhidraBridgeMagics)
+    # WIP Hack
+    import ghidra_bridge.doc_helper
+    ghidra_bridge.doc_helper.DOCHELPER = ghidra_bridge.doc_helper.DocHelper(zip_path=b._API_ZIP)
+
+
