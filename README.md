@@ -44,6 +44,53 @@ The rest are opinionated config decisions that I consider reasonable for a shell
 
 ## Features
 
+### IPython Help from Ghidra API doc
+
+IPython provides information on an object or a function when appending `?` or `??`.
+ipyghidra implements the various attributes/properties that are accessed by IPython or used modules to generate them from the Ghidra API JSON doc.
+
+Not everything is implemented yet, so some information is still from the `BridgedObject` and not the actual object on the Ghidra side, but the most important parts work:
+
+```
+In [1]: currentProgram?
+Type:        BridgedObject
+String form: FileProtection-05.arm64.macho - .ProgramDB
+File:        ~/gits/ghidra_bridge/ghidra_bridge/bridge.py
+Docstring:   Database implementation for Program.
+```
+
+Type and File are still related to `BridgedObject`, while the Docstring is from the API doc.
+
+For callables this goes even further and includes the full function signature:
+
+```
+In [5]: currentProgram.functionManager.createExternalFunction?
+Signature:
+currentProgram.functionManager.createExternalFunction(
+    extSpaceAddr: 'Address',
+    name: 'String',
+    nameSpace: 'Namespace',
+    extData3: 'String',
+    source: 'SourceType',
+) -> 'Function'
+Type:        BridgedCallable
+String form: <bound method ghidra.program.database.function.FunctionManagerDB.createExternalFunction of ghidra.program.database.function.FunctionManagerDB@45b958e0>
+File:        ~/gits/ghidra_bridge/ghidra_bridge/bridge.py
+Docstring:
+Transform an existing external symbol into an external function.
+ This method should only be invoked by an ExternalSymbol
+@param extSpaceAddr the external space address to use when creating this external.
+@param name
+@param nameSpace
+@param extData3 internal symbol-data-3 string (see {@link ExternalLocationDB})
+@param sourceType the source of this external.
+@return external function
+@throws InvalidInputException
+@throws DuplicateNameException
+```
+
+Currently the types in `__signature__` and `__annotations__` are strings and only useful for humans.
+This will be extended in the future to allow IPython's Jedi autocompleter to use them to determine the return types of functions and tab complete based on this information.
 
 ### Remote Eval Magic
 

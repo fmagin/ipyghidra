@@ -5,6 +5,7 @@ import ast
 
 
 import ghidra_bridge
+from ipyghidra.doc_helper import DocHelper
 
 b = None
 
@@ -46,8 +47,8 @@ def load_ipython_extension(ip):
 
     ip.user_ns.update({'_bridge': b})
     ip.register_magics(GhidraBridgeMagics)
-    # WIP Hack
-    import ghidra_bridge.doc_helper
-    ghidra_bridge.doc_helper.DOCHELPER = ghidra_bridge.doc_helper.DocHelper(zip_path=b._API_ZIP)
+
+    doc_helper = DocHelper(b.bridge)
+    doc_helper.patch_ghidra_bridge()
 
 
