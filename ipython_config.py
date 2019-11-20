@@ -123,7 +123,7 @@ c.InteractiveShellApp.extensions = ['ipyghidra']
 #------------------------------------------------------------------------------
 
 ## Whether to display a banner upon starting IPython.
-#c.TerminalIPythonApp.display_banner = True
+c.TerminalIPythonApp.display_banner = True
 
 ## If a command or file is given via the command-line, e.g. 'ipython foo.py',
 #  start an interactive shell after executing the file or command.
@@ -167,11 +167,30 @@ c.InteractiveShellApp.extensions = ['ipyghidra']
 ## Enable magic commands to be called without the leading %.
 #c.InteractiveShell.automagic = True
 
-## The part of the banner to be printed before the profile
-#c.InteractiveShell.banner1 = "Python 3.7.3 (default, Apr  3 2019, 05:39:12) \nType 'copyright', 'credits' or 'license' for more information\nIPython 7.8.0 -- An enhanced Interactive Python. Type '?' for help.\n"
-
 ## The part of the banner to be printed after the profile
-#c.InteractiveShell.banner2 = ''
+c.InteractiveShell.banner2 = """
+                  @%&                                                          
+            @@########%###%%/%                      @*##%%**###%%#%            
+          ####################% %                  ####/############((&        
+       ###########################              %%####################((       
+    %############*,,,,############%*%          ##########%###############      
+   %########,,,,        ,,###########%        %##########     %############    
+  ######,,               ,#########%%    %#####%#####%         %##########&  
+ %#######,(                  ,#########%  ####%   %##(             %#########@ 
+ %######,                      ##########%% %%     ##%              %######### 
+%######,                        ,##########  &*   @#*&               ,######## 
+ ######,                         %########((*,    %#%                ,########&
+ ######,                           #######/###                       ,######## 
+ ######(                            %#*((######%                    %,######## 
+ #######*                            //(########(                  %,######### 
+  #######                         * , /%##########(               (,#########  
+   ########                     //       ###########,%@        %,,,#########   
+    #########               #  ***,       %#############,,,,,,,*###########    
+      ##########%        //// (***          %############################      
+        ###########%(##  ##((                 %########################        
+            ########%((  ((/                     ###################           
+                                                      %#######%     
+"""
 
 ## Set the size of the output cache.  The default is 1000, you can change it
 #  permanently in your config file.  Setting it to 0 completely disables the
