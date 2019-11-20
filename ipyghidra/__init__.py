@@ -5,6 +5,8 @@ import ast
 
 
 import ghidra_bridge
+import logging
+
 from ipyghidra.doc_helper import DocHelper
 
 b = None
@@ -43,12 +45,17 @@ class GhidraBridgeMagics(Magics):
 def load_ipython_extension(ip):
     global b
     import ghidra_bridge
+    logger = logging.getLogger('ipyghidra')
+    logger.setLevel(logging.INFO)
+
     b = ghidra_bridge.GhidraBridge(namespace=ip.user_ns) # creates the bridge and loads the flat API into the global namespace
-
+    logger.info("Connected to bridge")
     ip.user_ns.update({'_bridge': b})
+    logger.info("Registering Magics")
     ip.register_magics(GhidraBridgeMagics)
-
+    logger.info("Setting up DocHelper")
     doc_helper = DocHelper(b.bridge)
+    logger.info("Patching ghidra_bridge")
     doc_helper.patch_ghidra_bridge()
 
 
