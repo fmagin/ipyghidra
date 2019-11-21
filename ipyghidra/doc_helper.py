@@ -12,6 +12,39 @@ import ghidra_bridge
 
 
 
+from typing import NewType, Tuple, Optional, TypeVar, List, TYPE_CHECKING
+
+
+
+T = TypeVar('T')
+def unwrap(input: Optional[T]) -> T:
+    if input is None:
+        raise Exception("Unwrap called on None")
+    else:
+        return input
+ClassName = NewType("ClassName", str)
+MethodName = NewType("MethodName", str)
+
+
+
+if TYPE_CHECKING:
+    from typing import TypedDict
+    class ParameterDoc(TypedDict):
+        type_long: ClassName
+        name: str
+        comment: str
+        type_short: str
+
+    class MethodDoc(TypedDict):
+        javadoc: str
+        static: bool
+        name: str
+        comment: str
+        params: List[ParameterDoc]
+        throws: List[ClassName]
+        _return: str
+
+from inspect import _signature_from_callable
 
 class DocHelper():
     """Doc helper that is based on ghidradoc.py helper, but returns the doc dict instead of printing it"""
@@ -59,10 +92,10 @@ class DocHelper():
 
 
 
-    def _get_class_and_method(self, obj):
+    def _get_class_and_method(self, obj) -> Tuple[ClassName, Optional[MethodName], bool]:
         """A collection of hacks and string extraction mostly taken from the original ghidradoc.py"""
-        class_name = None
-        method_name = None
+        class_name: Optional[ClassName] = None
+        method_name: Optional[MethodName] = None
         is_class = False
         t = str(obj._bridged_get_type())
 
@@ -76,30 +109,46 @@ class DocHelper():
             # we have a callable. use obj._bridge_repr because the type info is useless
             t = obj._bridge_repr
             tokens = str(t).split(" ")[2].split(".")
-            class_name = ".".join(tokens[:-1])
-            method_name = tokens[-1]
+            class_name = ClassName(".".join(tokens[:-1]))
+            method_name = MethodName(tokens[-1])
         else:
             match = re.search("'(.*)'", t)
             if match is not None:
-                class_name = match.group(1)
+                class_name = ClassName(match.group(1))
 
-        return class_name, method_name, is_class
+        return unwrap(class_name), method_name, is_class
+
+
+    def _generate_constructor_doc(self, jdoc):
+        """
+
+        :param jdoc: The json doc of the class
+        :type jdoc:
+        :return:
+        :rtype:
+        """
+        # Do we have multiple constructors?
+
+        # A type/class was passed in. The most useful result to return is the doc of the constructor, but there might be multiple
+        # TODO: If a class doesn't implement it's own constructor we might still have to search for an implementation
+        constructors = [c for c in jdoc['methods'] if c['name'] == "<init>"]
+        if len(constructors) > 1:
+            # TODO: Find a sensible solution here.
+            # For now this does also just returns the first constructor
+            constructors[0]['javadoc'] = f"[Constructor for {class_name}: {jdoc['javadoc']}]\n" + constructor_doc[0][
+                'javadoc']
+            return constructor_doc[0]
+        else:
+            constructor_doc[0]['javadoc'] = f"[Constructor for {class_name}: {jdoc['javadoc']}]\n" + constructor_doc[0][
+                'javadoc']
+            return constructor_doc[0]
 
 
     def get_doc(self, obj):
         class_name, method_name, is_class = self._get_class_and_method(obj)
 
         if is_class:
-            # A type/class was passed in. The most useful result to return is the doc of the constructor, but there might be multiple
-            # TODO: If a class doesn't implement it's own constructor we might still have to search for an implementation
-            jdoc = self.get_jsondoc(class_name)
-            constructor_doc = [c for c in jdoc['methods'] if c['name'] == "<init>"]
-            if len(constructor_doc) > 1:
-                # TODO: Find a sensible solution here.
-                # For now this does also just returns the first constructor
-                return constructor_doc[0]
-            else:
-                return constructor_doc[0]
+            pass
 
         try_again = True
         while try_again:
@@ -115,6 +164,9 @@ class DocHelper():
                     if 'extends' in jdoc:
                         class_name = jdoc['extends']
                         try_again = True
+
+    def _get_doc(self, class_name: ClassName):
+        pass
 
     def render_method(self, json_doc) -> str:
         jd = json_doc
