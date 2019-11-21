@@ -32,7 +32,13 @@ class GhidraBridgeMagics(Magics):
     def ghidra_eval(self, line, cell=None):
         b = self.shell.user_ns['_bridge'] # type: ghidra_bridge.ghidra_bridge.GhidraBridge
         # Of the cell is not none use it and ignore the line, otherwise use the line
-        code = cell or line
+        if cell:
+            code = cell
+        elif line:
+            code = line
+        else:
+            # Neither cell nor line was given, i.e. just `%ghidra_eval`. Run the last cell via the bridge
+            code = self.shell.user_ns['In'][-2]
         # Parse the AST and gather all variable names used
         code_ast = ast.parse(code)
         v = VarVisitor()
@@ -49,6 +55,7 @@ def load_ipython_extension(ip):
     logger.setLevel(logging.INFO)
 
     b = ghidra_bridge.GhidraBridge(namespace=ip.user_ns, interactive_mode=True) # creates the bridge and loads the flat API into the global namespace
+
     logger.info("Connected to bridge")
     ip.user_ns.update({'_bridge': b})
     logger.info("Registering Magics")
