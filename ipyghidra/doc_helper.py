@@ -150,9 +150,8 @@ class DocHelper():
             except:
                 pass
 
-        setattr(BridgedObject, '__doc__', property(__doc__))
-        getattr(BridgedObject, '_LOCAL_METHODS').extend(['__doc__', '__annotations__', '__signature__'])
-        setattr(BridgedCallable, '__doc__', property(__doc__))
+        setattr(BridgedObject, 'getdoc', __doc__)
+        setattr(BridgedCallable, 'getdoc', property(__doc__))
         setattr(BridgedCallable, '__annotations__', property(__annotations__))
         setattr(BridgedCallable, '__signature__', property(__signature__))
 
