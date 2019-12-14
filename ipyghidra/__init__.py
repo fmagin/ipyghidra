@@ -1,5 +1,5 @@
 
-from IPython.core.magic import (Magics, magics_class, line_cell_magic)
+from IPython.core.magic import (Magics, magics_class, line_cell_magic, line_magic)
 
 import ast
 
@@ -48,14 +48,23 @@ class GhidraBridgeMagics(Magics):
         # This mapping from variable names to objects can now be passed to remote_eval which makes sure those variables exist when evaluating on the server side
         return b.bridge.remote_eval(code, **vars)
 
+
 def load_ipython_extension(ip):
     global b
     import ghidra_bridge
     logger = logging.getLogger('ipyghidra')
     logger.setLevel(logging.INFO)
-
-    b = ghidra_bridge.GhidraBridge(namespace=ip.user_ns, interactive_mode=True) # creates the bridge and loads the flat API into the global namespace
-
+    try:
+        b = ghidra_bridge.GhidraBridge(namespace=ip.user_ns, interactive_mode=True) # creates the bridge and loads the flat API into the global namespace
+    except ConnectionRefusedError:
+        logging.error("Connection to GhidraBridge server failed")
+        try:
+            import os
+            import inspect
+            bridge_path = os.path.dirname(os.path.dirname(inspect.getfile(ghidra_bridge)))
+            logging.error("For a minimal server run $GHIDRA_ROOT/support/pythonRun %s/ghidra_bridge_server.py" % bridge_path)
+        except:
+            pass
     logger.info("Connected to bridge")
     ip.user_ns.update({'_bridge': b})
     logger.info("Registering Magics")
