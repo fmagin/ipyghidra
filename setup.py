@@ -9,5 +9,5 @@ setup(
     author="Florian Magin",
     url="none",
     packages=["ipyghidra"],
-    install_requires=["ghidra_bridge", "ipython", "attr", "cattrs-3.8" if sys.version_info >= (3, 8) else "cattrs"],
+    install_requires=["ghidra_bridge", "ipython", "attr", "cattrs-3.8" if sys.version_info >= (3, 8) else "cattrs", "psutil"],
 )
