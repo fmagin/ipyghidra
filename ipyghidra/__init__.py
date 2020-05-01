@@ -2,10 +2,14 @@ import ast
 import inspect
 import logging
 import os
+from typing import Optional
 
 from IPython.core.magic import (Magics, magics_class, line_cell_magic)
-
+import IPython
 import ghidra_bridge
+from jfx_bridge.bridge import BridgeException
+
+# from ipyghidra.doc_helper import DocHelper
 from ipyghidra.doc_helper import DocHelper
 
 b = None
@@ -27,7 +31,8 @@ class VarVisitor(ast.NodeVisitor):
 @magics_class
 class GhidraBridgeMagics(Magics):
 
-    def __init__(self, bridge):
+    def __init__(self, bridge, **kwargs):
+        #super(GhidraBridgeMagics).__init__(kwargs)
         self.bridge = bridge
 
     @line_cell_magic
@@ -47,7 +52,7 @@ class GhidraBridgeMagics(Magics):
         # For every variable in the AST check if it is defined in the current user namespace and if yes get its actual value
         vars = {var: self.shell.user_ns[var] for var in  v.variables if var in self.shell.user_ns}
         # This mapping from variable names to objects can now be passed to remote_eval which makes sure those variables exist when evaluating on the server side
-        return self.bridge .bridge.remote_eval(code, **vars)
+        return self.bridge.bridge.remote_eval(code, **vars)
 
 
 import subprocess
@@ -72,7 +77,7 @@ def terminate_bridge(handle: subprocess.Popen):
         p.kill()
 
 
-def _setup_bridge(ip):
+def _setup_bridge(ip) -> Optional[ghidra_bridge.GhidraBridge]:
     from traitlets.config import get_config
     config = get_config()
     try:
@@ -100,24 +105,64 @@ def _setup_bridge(ip):
             logging.error(f"For a minimal server run  {pythonRun_path} {bridge_path}")
 
 
-def load_ipython_extension(ip):
+
+
+class VarWatcher(object):
+    def __init__(self, ip: IPython.InteractiveShell):
+        self.ip = ip
+        self.last_function = None
+        self.last_address = None
+    def extra_variables_pre(self):
+        program = self.ip.user_ns.get('currentProgram')
+        address = self.ip.user_ns.get('currentAddress')
+        try:
+            function = program.functionManager.getFunctionContaining(address)
+
+        except BridgeException as e:
+            logging.warning("Got exception %s while trying to set currentFunction", e)
+            function = None
+        self.ip.user_ns['currentFunction'] = function
+        self.last_address = address
+        self.last_function = function
+
+    def extra_variables_post(self):
+        program = self.ip.user_ns.get('currentProgram')
+        address = self.ip.user_ns.get('currentAddress')
+        try:
+            function = program.functionManager.getFunctionContaining(address)
+            if function != self.last_function:
+                pass
+            if address != self.last_address:
+                pass
+        except BridgeException as e:
+            logging.warning("Got exception %s while trying to set currentFunction" )
+
+
+import ipyghidra
+def load_ipython_extension(ip: IPython.InteractiveShell):
     logger = logging.getLogger('ipyghidra')
     logger.setLevel(logging.INFO)
 
     b = _setup_bridge(ip)
 
+    if b:
+        logging.info("Connected to bridge")
+        ip.push({'_bridge': b})
 
-    logger.info("Connected to bridge")
-    ip.push({'_bridge': b})
+        logging.info("Registering Magics")
+        ip.register_magics(GhidraBridgeMagics(b))
 
-    logger.info("Registering Magics")
-    ip.register_magics(GhidraBridgeMagics(b))
+        logging.info("Setting up DocHelper")
+        doc_helper = DocHelper(b.bridge)
+        ip.push({'_doc_helper': doc_helper})
 
-    logger.info("Setting up DocHelper")
-    doc_helper = DocHelper(b.bridge)
-    ip.push({'_doc_helper': doc_helper})
+        logging.info("Patching ghidra_bridge")
+        doc_helper.patch_ghidra_bridge()
 
-    logger.info("Patching ghidra_bridge")
-    doc_helper.patch_ghidra_bridge()
+        var = VarWatcher(ip)
+        ip.events.register('pre_run_cell', var.extra_variables_pre)
+    else:
+        return
+
 
 
