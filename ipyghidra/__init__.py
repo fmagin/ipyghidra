@@ -10,7 +10,7 @@ import ghidra_bridge
 from jfx_bridge.bridge import BridgeException
 
 # from ipyghidra.doc_helper import DocHelper
-from ipyghidra.doc_helper import DocHelper
+
 
 b = None
 
@@ -139,6 +139,7 @@ class VarWatcher(object):
 
 
 import ipyghidra
+from ipyghidra.doc_helper_stubfile import DocHelper as DocHelperStub
 def load_ipython_extension(ip: IPython.InteractiveShell):
     logger = logging.getLogger('ipyghidra')
     logger.setLevel(logging.INFO)
@@ -153,7 +154,7 @@ def load_ipython_extension(ip: IPython.InteractiveShell):
         ip.register_magics(GhidraBridgeMagics(b))
 
         logging.info("Setting up DocHelper")
-        doc_helper = DocHelper(b.bridge)
+        doc_helper = DocHelperStub(b.bridge)
         ip.push({'_doc_helper': doc_helper})
 
         logging.info("Patching ghidra_bridge")
