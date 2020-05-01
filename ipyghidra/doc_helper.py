@@ -10,7 +10,7 @@ import os
 
 
 from IPython.core.oinspect import _render_signature
-from ghidra_bridge.bridge import BridgeClient
+from jfx_bridge.bridge import BridgeClient
 
 import attr
 import cattr
@@ -99,7 +99,7 @@ class ClassDoc:
 class DocHelper:
     """Doc helper that is based on ghidradoc.py helper, but returns the doc dict instead of printing it"""
 
-    def __init__(self, bridge: BridgeClient, zip_path=None):
+    def __init__(self, bridge: 'BridgeClient', zip_path=None):
 
         self._zip_path = zip_path or self._find_zip(bridge)
         self._bridge = bridge
@@ -112,7 +112,7 @@ class DocHelper:
         return f"<DocHelper at {self._doc_dir.name}>"
 
     @staticmethod
-    def _find_zip(bridge: BridgeClient) -> str:
+    def _find_zip(bridge: 'BridgeClient') -> str:
         # Find the API ZIP so the client can inspect the doc
         ghidra = bridge.remote_import('ghidra')
         layout = ghidra.GhidraApplicationLayout()
@@ -266,7 +266,7 @@ class DocHelper:
 
 
     def patch_ghidra_bridge(self):
-        from ghidra_bridge.bridge import BridgedCallable, BridgedObject
+        from jfx_bridge.bridge import BridgedCallable, BridgedObject
 
         def __signature__(target_self):
             return self.get_signature(target_self)
