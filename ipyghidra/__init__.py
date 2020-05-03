@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Optional
 
+import jfx_bridge
 from IPython.core.magic import (Magics, magics_class, line_cell_magic)
 import IPython
 import ghidra_bridge
@@ -158,10 +159,14 @@ def load_ipython_extension(ip: IPython.InteractiveShell):
         ip.push({'_doc_helper': doc_helper})
 
         logging.info("Patching ghidra_bridge")
-        doc_helper.patch_ghidra_bridge()
+        # doc_helper.patch_ghidra_bridge()
+
+        doc_helper.register_overrides()
 
         var = VarWatcher(ip)
         ip.events.register('pre_run_cell', var.extra_variables_pre)
+
+
     else:
         return
 
