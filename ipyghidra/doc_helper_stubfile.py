@@ -1,5 +1,7 @@
 import inspect
 import logging
+from collections import defaultdict
+from functools import cached_property
 from inspect import Signature
 from typing import Optional, List, Dict, Union, Tuple
 
@@ -50,15 +52,21 @@ class BaseDoc():
     pass
 
 class ClassDoc(BaseDoc):
+    # Cache that maps from "ghidra.program.database.ProgramDB" to the ClassDoc object for that class
+    _cache = {}
+
 
     def __init__(self, cls_obj: Optional[BridgedCallable] = None, cls_string: Optional[str] = None):
         # self.cls = cls
-
+        if cls_string in ClassDoc._cache:
+            raise RuntimeError("__init__ of ClassDoc called while already cached")
+        else:
+            ClassDoc._cache[cls_string] = self
         if cls_obj is not None and cls_obj._bridge_type == 'Class':
             self.cls_type = True
             self.cls_string = cls_obj.__init__.__name__
         elif cls_obj is not None and cls_obj._bridge_type == 'type':
-                pass
+            raise NotImplementedError()
 
         else:
             self.cls_string = cls_string or cls_obj._bridge_type
@@ -68,26 +76,28 @@ class ClassDoc(BaseDoc):
             raise ValueError("cls_string is %s, this shouldnt' have happened" % self.cls_string)
         self._ast = None
 
-
     @staticmethod
-    def _type_str(bridged_obj: BridgedObject):
-        _t = bridged_obj._bridged_get_type()  # "<type 'ghidra.program.database.ProgramDB'>"
-        return str(_t)[7:-2]  # 'ghidra.program.database.ProgramDB'
+    def from_cls_string(cls_string: str):
+        # like ghidra.program.database.ProgramDB
+        try:
+            return ClassDoc._cache[cls_string]
+        except KeyError:
+            ClassDoc._cache[cls_string] = ClassDoc(cls_string=cls_string)
+            return ClassDoc._cache[cls_string]
 
-
-    @property
+    @cached_property
     def functions(self):
         ff = FuncDefFinder()
         ff.visit(self.ast)
         return ff.functions
 
-    @property
+    @cached_property
     def __doc__(self):
         ast = self.ast
         doc = get_docstring(ast)
         return doc
 
-    @property
+    @cached_property
     def ast(self) -> ClassDef:
         if not self._ast:
             source = self.source_file.read_text()
@@ -98,7 +108,7 @@ class ClassDoc(BaseDoc):
         return self._ast
 
 
-    @property
+    @cached_property
     def source_file(self) -> Path:
 
         result = find_module_cache.find_module(self.cls_string)
@@ -108,6 +118,9 @@ class ClassDoc(BaseDoc):
             raise ValueError(result)
 
 
+def _type_str(bridged_obj: BridgedObject):
+    _t = bridged_obj._bridged_get_type()  # "<type 'ghidra.program.database.ProgramDB'>"
+    return str(_t)[7:-2]  # 'ghidra.program.database.ProgramDB'
 
 
 class InstanceMethodDoc(BaseDoc):
@@ -116,17 +129,19 @@ class InstanceMethodDoc(BaseDoc):
 
         if bridged_callable._bridge_type == "reflectedconstructor":
             # Case for: <java constructor ghidra.GhidraApplicationLayout 0x19b64>
-            self.cls_doc = ClassDoc(None, cls_string=bridged_callable.__name__)
+            self.cls_doc = ClassDoc.from_cls_string(cls_string=bridged_callable.__name__)
             self.name = bridged_callable.__name__
         else:
             try:
                 ty = bridged_callable.im_class
                 if ty._bridge_type == "type":
+                    # Case for: <bound method reflectedconstructor.__call__ of <java constructor ghidra.GhidraApplicationLayout 0x19b64>>
                     cls_string = bridged_callable.im_self.__name__
-                    self.cls_doc = ClassDoc(cls_string=cls_string)
+                    self.cls_doc = ClassDoc.from_cls_string(cls_string)
                     self.name = cls_string
                 elif bridged_callable._bridge_type == "instancemethod":
-                    self.cls_doc = ClassDoc(cls_string=bridged_callable.im_self._bridge_type)
+                    # Case for: <bound method ghidra.program.database.ProgramDB.ghidra.program.database.ProgramDB of dkacstm-lan-3_3_6.elf - .ProgramDB>
+                    self.cls_doc = ClassDoc.from_cls_string(bridged_callable.im_self._bridge_type)
                     self.name = bridged_callable.__name__
                 elif ty._bridge_type == "Class":
                     cls_string = bridged_callable.__name__
@@ -235,25 +250,28 @@ class DocHelper():
             meth_doc = InstanceMethodDoc(target_self)
             return meth_doc.__doc__
         elif ty == "Class":
-            class_doc = ClassDoc(cls_string=target_self.__init__.__name__)
+            class_doc = ClassDoc.from_cls_string(target_self.__init__.__name__)
             return class_doc.__doc__
         elif target_self._bridge_type == "reflectedconstructor":
             meth_doc = InstanceMethodDoc(target_self)
             return meth_doc.__doc__
         elif ty.startswith("ghidra"):
-            class_doc = ClassDoc(cls_string=ty)
+            class_doc = ClassDoc.from_cls_string(ty)
             return class_doc.__doc__
 
         else:
             logger.warning("Unhandled input {}".format(target_self))
 
     def generate_module(self, target_self):
-        if target_self is None:
-            logger.info("__module__ queried for unknown target")
-        else:
-            logger.debug("__module__ queried for %s" % target_self)
-            return ".".join(target_self._bridge_type.split(".")[:-1])
-            # return ".".join(str(target_self._bridged_get_type())[7:-2].split(".")[:-1])
+        logger.debug("__module__ queried for %s" % target_self)
+        if target_self._bridge_type == "instancemethod":
+            full_type =  target_self.im_self._bridge_type
+        elif target_self._bridge_type.startswith("ghidra"):
+            # On bridged objects _bridge_type should just be what we want
+            full_type = target_self._bridge_type
+
+        # For example: 'ghidra.program.database.ProgramDB'
+        return ".".join(full_type.split(".")[:-1])
 
 
     def generate_annotations(self, target_self):

@@ -176,3 +176,9 @@ def test_constructor_mess():
     cls = bridge_namespace['ghidra'].GhidraApplicationLayout
 
     result = inspector.info(cls.__init__)
+
+def test_module_on_object():
+    nose.tools.assert_equal(bridge_namespace["currentProgram"].__module__, "ghidra.program.database")
+
+def test_module_on_instance_method():
+    nose.tools.assert_equal(bridge_namespace["currentProgram"].getFunctionManager.__module__, "ghidra.program.database")
