@@ -1,12 +1,12 @@
 import inspect
 import logging
 from collections import defaultdict
-from functools import cached_property
+from functools import cached_property, lru_cache
 from inspect import Signature
 from typing import Optional, List, Dict, Union, Tuple
 
 import jfx_bridge
-from jfx_bridge.bridge import BridgedObject, BridgedCallable
+from jfx_bridge.bridge import BridgedObject, BridgedCallable, ConcedeBridgeOverrideException
 
 from pathlib import Path
 
@@ -23,7 +23,10 @@ from typed_ast.ast3 import parse, dump, NodeVisitor, get_docstring, Attribute, N
 from typed_ast._ast3 import FunctionDef, ClassDef
 
 
-logging.basicConfig()
+logging.basicConfig(
+format='%(asctime)s.%(msecs)03d %(levelname)-8s %(message)s',
+level=logging.INFO,
+datefmt='%Y-%m-%d %H:%M:%S')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -144,7 +147,8 @@ class InstanceMethodDoc(BaseDoc):
                     self.cls_doc = ClassDoc.from_cls_string(bridged_callable.im_self._bridge_type)
                     self.name = bridged_callable.__name__
                 elif ty._bridge_type == "Class":
-                    cls_string = bridged_callable.__name__
+                    # Case for: <type 'ghidra.GhidraApplicationLayout'>
+                    cls_string = bridged_callable.typeName
                     self.cls_doc = ClassDoc(cls_string=cls_string)
                     self.name = cls_string
                 else:
@@ -164,12 +168,14 @@ class InstanceMethodDoc(BaseDoc):
 
         self._asts: Optional[FunctionDef] = None
 
+    @lru_cache()
     def get_annotations(self) -> Dict[str, str]:
         if not self.overloaded:
             return dict(self._ast_to_annotations(self.ast))
         else:
             logger.info("get_annotations: %s() has multiple implementations, not handled yet", self.name)
 
+    @lru_cache()
     def get_signature(self) -> inspect.Signature:
         if not self.overloaded:
             parameters = [inspect.Parameter(name,
@@ -182,6 +188,7 @@ class InstanceMethodDoc(BaseDoc):
         else:
             logger.info("get_signature: %s() has multiple implementations, not handled yet", self.name)
 
+    @lru_cache()
     def _ast_to_annotations(self, ast: FunctionDef)-> List[Tuple[str, str]]:
         result = []
         for arg in ast.args.args:
@@ -197,15 +204,15 @@ class InstanceMethodDoc(BaseDoc):
             return self._attr_to_str(ast.value) + "." + ast.attr
 
 
-    @property
+    @cached_property
     def is_constructor(self):
         return self.reflectedconstructor or self.name == self.cls_doc.cls_string
 
-    @property
+    @cached_property
     def reflectedconstructor(self):
         return self.cls_doc.cls_string == "reflectedconstructor"
 
-    @property
+    @cached_property
     def possible_asts(self) -> List[FunctionDef]:
         name = "__init__" if self.is_constructor else self.name
         if not self._asts:
@@ -213,23 +220,25 @@ class InstanceMethodDoc(BaseDoc):
 
         return self._asts
 
-    @property
+    @cached_property
     def overloaded(self) -> bool:
         return len(self.possible_asts) > 1
 
-    @property
+    @cached_property
     def ast(self) -> Optional[FunctionDef]:
         if not self.overloaded:
             return self.possible_asts[0]
         else:
             return None
 
-    @property
+    @cached_property
     def __doc__(self) -> str:
         if not self.overloaded:
             return get_docstring(self.ast) or "NO JAVADOC AVAILABLE"
         else:
-            logger.info("%s() has multiple implementations, not handled yet", self.name)
+            msg = "%s() has multiple implementations, not handled yet" % self.name
+            logger.info(msg)
+            return msg
 
 class DocHelper():
     def __init__(self, bridge):
@@ -243,7 +252,7 @@ class DocHelper():
             logger.info("Getting __doc__ for some unknown class")
             return ""
         else:
-            logger.info("Getting __doc__ for {}".format(repr(target_self)))
+            logger.info("Getting __doc__ for {}".format(target_self._bridge_repr))
 
         ty = target_self._bridge_type
         if target_self._bridge_type == 'instancemethod':
@@ -260,10 +269,10 @@ class DocHelper():
             return class_doc.__doc__
 
         else:
-            logger.warning("Unhandled input {}".format(target_self))
+            logger.warning("Unhandled input {}".format(target_self._bridge_repr))
 
     def generate_module(self, target_self):
-        logger.debug("__module__ queried for %s" % target_self)
+        logger.debug("__module__ queried for %s" % target_self._bridge_repr)
         if target_self._bridge_type == "instancemethod":
             full_type =  target_self.im_self._bridge_type
         elif target_self._bridge_type.startswith("ghidra"):
@@ -276,7 +285,7 @@ class DocHelper():
 
     def generate_annotations(self, target_self):
         try:
-            logger.info("Generating annotations for %s" % target_self)
+            logger.info("Generating annotations for %s" % target_self._bridge_repr)
             if target_self._bridge_type == "Class":
                 meth_doc = InstanceMethodDoc(target_self.__init__)
             elif target_self._bridge_type == 'builtin_function_or_method':
@@ -288,7 +297,7 @@ class DocHelper():
             logger.warning("Got exception %s", e)
 
     def generate_signature(self, target_self):
-        logger.info("Generating signature for %s" % target_self)
+        logger.info("Generating signature for %s" % target_self._bridge_repr)
         try:
             if target_self._bridge_type == "Class":
                 meth_doc = InstanceMethodDoc(target_self.__init__)
@@ -327,13 +336,37 @@ class DocHelper():
         #
         # setattr(inspect, 'isclass', isclass)
 
+    def intercept_str(self, target_self):
+        pass
+        raise ConcedeBridgeOverrideException()
+
+    def intercept_init(self, target_self):
+        if self.check_for_ipython() and target_self._bridge_type.startswith("ghidra"):
+            raise AttributeError()
+        raise ConcedeBridgeOverrideException()
+
+    def check_for_ipython(self):
+        stack = inspect.stack()
+        if stack[3].function == "_info":
+            return True
+        else:
+            return False
+
     def register_overrides(self):
         jfx_bridge.register_overrides({
             "__module__": self.generate_module,
             "__doc__": self.generate_doc,
             "__objclass__": self.generate_objclass,
             "__annotations__": self.generate_annotations,
-            "__signature__": self.generate_signature
+            "__signature__": self.generate_signature,
+            "__code__": lambda obj: None,
+            "__defaults__": lambda obj: None,
+            "__kwdefaults__": lambda obj: None,
+            "__text_signature__": lambda obj: None,
+            "_partialmethod": lambda obj: None,
+            "__str__": self.intercept_str,
+            "__init__": self.intercept_init
+
         })
 
 

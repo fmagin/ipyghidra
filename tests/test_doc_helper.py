@@ -13,7 +13,7 @@ b = ghidra_bridge.GhidraBridge(namespace=bridge_namespace)
 
 bridge_logger = b.bridge.logger
 
-bridge_logger.addHandler(logging.StreamHandler(sys.stdout))
+bridge_logger.addHandler(logging.StreamHandler())
 doc_helper = DocHelper(b)
 doc_helper.register_overrides()
 
@@ -36,6 +36,7 @@ def test_currentProgram():
         'init_definition': None,
         'class_docstring': 'An object you can only interact with on the opposite side of a bridge ',
         'init_docstring': None,
+        # 'init_docstring': "ghidra.program.database.ProgramDB() has multiple implementations, not handled yet",
         'call_def': None,
         'call_docstring': None,
         'ismagic': False,
@@ -62,18 +63,19 @@ def test_functionManager():
                 'source': None,
                 'init_definition': None,
                 'class_docstring': 'An object you can only interact with on the opposite side of a bridge ',
-                'init_docstring': "Construct a new FunctionManager\n"
-                                  "@param dbHandle data base handle\n"
-                                  "@param addrMap address map for the program\n"
-                                  "@param openMode CREATE, UPDATE, READ_ONLY, or UPGRADE defined in\n"
-                                  " db.DBConstants\n"
-                                  "@param lock the program synchronization lock\n"
-                                  "@param monitor\n"
-                                  "@throws VersionException if function manager's version does not match\n"
-                                  " its expected version\n"
-                                  "@throws CancelledException if the function table is being upgraded\n"
-                                  " and the user canceled the upgrade process\n"
-                                  "@throws IOException if there was a problem accessing the database",
+                # 'init_docstring': "Construct a new FunctionManager\n"
+                #                   "@param dbHandle data base handle\n"
+                #                   "@param addrMap address map for the program\n"
+                #                   "@param openMode CREATE, UPDATE, READ_ONLY, or UPGRADE defined in\n"
+                #                   " db.DBConstants\n"
+                #                   "@param lock the program synchronization lock\n"
+                #                   "@param monitor\n"
+                #                   "@throws VersionException if function manager's version does not match\n"
+                #                   " its expected version\n"
+                #                   "@throws CancelledException if the function table is being upgraded\n"
+                #                   " and the user canceled the upgrade process\n"
+                #                   "@throws IOException if there was a problem accessing the database",
+                'init_docstring': None,
                 'call_def': None,
                 'call_docstring': None,
                 'ismagic': False,
@@ -128,7 +130,7 @@ def test_class_with_multiple_constructors():
                 'source': None,
                 'init_definition': None,
                 'class_docstring': 'An object you can only interact with on the opposite side of a bridge ',
-                'init_docstring': None,
+                'init_docstring': 'ghidra.GhidraApplicationLayout() has multiple implementations, not handled yet',
                 'call_def': None,
                 'call_docstring': None,
                 'ismagic': False,
