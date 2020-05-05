@@ -118,8 +118,8 @@ def test_functionManager_getFunctionAt():
 
 
 def test_class_with_multiple_constructors():
-    expected = {'type_name': 'BridgedCallable',
-                'base_class': "<class 'jfx_bridge.bridge.BridgedCallable'>",
+    expected = {'type_name': 'BridgedType',
+                'base_class': "<class 'jfx_bridge.bridge.BridgedType'>",
                 'string_form': "<type 'ghidra.GhidraApplicationLayout'>",
                 'namespace': None,
                 'length': None,
@@ -145,8 +145,8 @@ def test_class_with_multiple_constructors():
 
 
 def test_class_with_unique_constructor():
-    expected = {'type_name': 'BridgedCallable',
-                'base_class': "<class 'jfx_bridge.bridge.BridgedCallable'>",
+    expected = {'type_name': 'BridgedType',
+                'base_class': "<class 'jfx_bridge.bridge.BridgedType'>",
                 'string_form': "<type 'ghidra.app.util.cparser.C.CompositeHandler'>",
                 'namespace': None,
                 'length': None,

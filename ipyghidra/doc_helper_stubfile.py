@@ -134,6 +134,11 @@ class InstanceMethodDoc(BaseDoc):
             # Case for: <java constructor ghidra.GhidraApplicationLayout 0x19b64>
             self.cls_doc = ClassDoc.from_cls_string(cls_string=bridged_callable.__name__)
             self.name = bridged_callable.__name__
+        elif bridged_callable._bridge_type == "Class":
+            # case for <type 'ghidra.app.util.cparser.C.CompositeHandler'>
+            ty_name = bridged_callable.typeName
+            self.cls_doc = ClassDoc.from_cls_string(ty_name)
+            self.name = ty_name
         else:
             try:
                 ty = bridged_callable.im_class
@@ -146,11 +151,11 @@ class InstanceMethodDoc(BaseDoc):
                     # Case for: <bound method ghidra.program.database.ProgramDB.ghidra.program.database.ProgramDB of dkacstm-lan-3_3_6.elf - .ProgramDB>
                     self.cls_doc = ClassDoc.from_cls_string(bridged_callable.im_self._bridge_type)
                     self.name = bridged_callable.__name__
-                elif ty._bridge_type == "Class":
-                    # Case for: <type 'ghidra.GhidraApplicationLayout'>
-                    cls_string = bridged_callable.typeName
-                    self.cls_doc = ClassDoc(cls_string=cls_string)
-                    self.name = cls_string
+                # elif ty._bridge_type == "Class":
+                #     # Case for: <type 'ghidra.GhidraApplicationLayout'>
+                #     cls_string = bridged_callable.typeName
+                #     self.cls_doc = ClassDoc(cls_string=cls_string)
+                #     self.name = cls_string
                 else:
                     self.cls_doc = ClassDoc(cls_obj=ty)
                     self.name = bridged_callable.__name__
@@ -159,6 +164,7 @@ class InstanceMethodDoc(BaseDoc):
                 if bridged_callable._bridge_type == "instancemethod":
                     self.cls_doc = ClassDoc(cls_string=bridged_callable.im_self._bridge_type)
                     self.name = bridged_callable.__name__
+
                 else:
                     self.cls_doc = ClassDoc(None, cls_string=bridged_callable.__name__)
                     self.name = bridged_callable.__name__
@@ -259,7 +265,7 @@ class DocHelper():
             meth_doc = InstanceMethodDoc(target_self)
             return meth_doc.__doc__
         elif ty == "Class":
-            class_doc = ClassDoc.from_cls_string(target_self.__init__.__name__)
+            class_doc = ClassDoc.from_cls_string(target_self.typeName)
             return class_doc.__doc__
         elif target_self._bridge_type == "reflectedconstructor":
             meth_doc = InstanceMethodDoc(target_self)
@@ -278,7 +284,8 @@ class DocHelper():
         elif target_self._bridge_type.startswith("ghidra"):
             # On bridged objects _bridge_type should just be what we want
             full_type = target_self._bridge_type
-
+        elif target_self._bridge_type == "javapackage":
+            raise AttributeError("javapackage doesn't have __module__")
         # For example: 'ghidra.program.database.ProgramDB'
         return ".".join(full_type.split(".")[:-1])
 
@@ -287,7 +294,7 @@ class DocHelper():
         try:
             logger.info("Generating annotations for %s" % target_self._bridge_repr)
             if target_self._bridge_type == "Class":
-                meth_doc = InstanceMethodDoc(target_self.__init__)
+                meth_doc = InstanceMethodDoc(target_self)
             elif target_self._bridge_type == 'builtin_function_or_method':
                 return None
             else:
@@ -300,7 +307,7 @@ class DocHelper():
         logger.info("Generating signature for %s" % target_self._bridge_repr)
         try:
             if target_self._bridge_type == "Class":
-                meth_doc = InstanceMethodDoc(target_self.__init__)
+                meth_doc = InstanceMethodDoc(target_self)
             elif target_self._bridge_type == 'builtin_function_or_method':
                 return None
             else:
@@ -345,6 +352,11 @@ class DocHelper():
             raise AttributeError()
         raise ConcedeBridgeOverrideException()
 
+    def intercept_call(self, target_self):
+        if target_self._bridge_type.startswith("ghidra") or target_self._bridge_type == "Class":
+            raise AttributeError()
+        raise ConcedeBridgeOverrideException()
+
     def check_for_ipython(self):
         stack = inspect.stack()
         if stack[3].function == "_info":
@@ -365,8 +377,8 @@ class DocHelper():
             "__text_signature__": lambda obj: None,
             "_partialmethod": lambda obj: None,
             "__str__": self.intercept_str,
-            "__init__": self.intercept_init
-
+            "__init__": self.intercept_init,
+            "__call__": self.intercept_call
         })
 
 
