@@ -179,7 +179,7 @@ def load_ipython_extension(ip: IPython.InteractiveShell):
         logging.info("Patching ghidra_bridge")
         # doc_helper.patch_ghidra_bridge()
 
-        doc_helper.register_overrides()
+        doc_helper.register_overrides(b.bridge)
 
         var = VarWatcher(ip)
         ip.events.register('pre_run_cell', var.extra_variables_pre)

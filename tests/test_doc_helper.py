@@ -15,7 +15,7 @@ bridge_logger = b.bridge.logger
 
 bridge_logger.addHandler(logging.StreamHandler())
 doc_helper = DocHelper(b)
-doc_helper.register_overrides()
+doc_helper.register_overrides(b.bridge)
 
 
 inspector = oinspect.Inspector()

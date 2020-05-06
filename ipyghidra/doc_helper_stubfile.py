@@ -6,7 +6,7 @@ from inspect import Signature
 from typing import Optional, List, Dict, Union, Tuple
 
 import jfx_bridge
-from jfx_bridge.bridge import BridgedObject, BridgedCallable, ConcedeBridgeOverrideException
+from jfx_bridge.bridge import BridgedObject, BridgedCallable, ConcedeOverride, BridgeClient
 
 from pathlib import Path
 
@@ -345,17 +345,17 @@ class DocHelper():
 
     def intercept_str(self, target_self):
         pass
-        raise ConcedeBridgeOverrideException()
+        raise ConcedeOverride()
 
     def intercept_init(self, target_self):
         if self.check_for_ipython() and target_self._bridge_type.startswith("ghidra"):
             raise AttributeError()
-        raise ConcedeBridgeOverrideException()
+        raise ConcedeOverride()
 
     def intercept_call(self, target_self):
         if target_self._bridge_type.startswith("ghidra") or target_self._bridge_type == "Class":
             raise AttributeError()
-        raise ConcedeBridgeOverrideException()
+        raise ConcedeOverride()
 
     def check_for_ipython(self):
         stack = inspect.stack()
@@ -364,8 +364,9 @@ class DocHelper():
         else:
             return False
 
-    def register_overrides(self):
-        jfx_bridge.register_overrides({
+
+    def register_overrides(self, client: BridgeClient):
+        client.register_overrides({
             "__module__": self.generate_module,
             "__doc__": self.generate_doc,
             "__objclass__": self.generate_objclass,
