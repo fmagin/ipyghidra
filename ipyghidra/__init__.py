@@ -8,7 +8,7 @@ import jfx_bridge
 from IPython.core.magic import (Magics, magics_class, line_cell_magic)
 import IPython
 import ghidra_bridge
-from jfx_bridge.bridge import BridgeException
+from jfx_bridge.bridge import BridgeException, BridgedObject
 
 # from ipyghidra.doc_helper import DocHelper
 
@@ -143,8 +143,22 @@ class VarWatcher(object):
             logging.warning("Got exception %s while trying to set currentFunction" )
 
 
+def preload_package(object: BridgedObject):
+    logging.info("Preloading packages and classes of %s ", object._bridge_repr)
+    if object._bridge_type == "javapackage":
+        object._bridged_get_all()
+        for member_name, member_value in object._bridge_overrides.items():
+            if hasattr(member_value,"_bridge_type"):
+                preload_package(member_value)
+    elif object._bridge_type == "Class":
+        attrs = ['typeName', "__name__", "__bases__"]
+        object._bridged_get_batch(attrs, set_override=True)
+
+
 import ipyghidra
 from ipyghidra.doc_helper_stubfile import DocHelper as DocHelperStub
+
+
 def load_ipython_extension(ip: IPython.InteractiveShell):
     logger = logging.getLogger('ipyghidra')
     logger.setLevel(logging.INFO)
