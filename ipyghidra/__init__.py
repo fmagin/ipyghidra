@@ -113,11 +113,15 @@ class VarWatcher(object):
         self.ip = ip
         self.last_function = None
         self.last_address = None
+        self.getFunctionContaining = None
+
     def extra_variables_pre(self):
-        program = self.ip.user_ns.get('currentProgram')
         address = self.ip.user_ns.get('currentAddress')
+        if self.getFunctionContaining is None:
+            program = self.ip.user_ns.get('currentProgram')
+            self.getFunctionContaining = program.functionManager.getFunctionContaining
         try:
-            function = program.functionManager.getFunctionContaining(address)
+            function = self.getFunctionContaining(address)
 
         except BridgeException as e:
             logging.warning("Got exception %s while trying to set currentFunction", e)
