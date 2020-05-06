@@ -183,16 +183,23 @@ class InstanceMethodDoc(BaseDoc):
 
     @lru_cache()
     def get_signature(self) -> inspect.Signature:
-        if not self.overloaded:
-            parameters = [inspect.Parameter(name,
-                                            annotation=ty,
-                                            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD
-                                            ) for
-                          name, ty
-                          in self._ast_to_annotations(self.ast) if name != "return"]
-            return Signature(parameters, return_annotation=self.get_annotations()["return"], __validate_parameters__=False)
-        else:
+        num_asts = len(self.possible_asts)
+        if num_asts == 1:
+            return self._ast_to_signature(self.ast)
+        elif num_asts > 2:
             logger.info("get_signature: %s() has multiple implementations, not handled yet", self.name)
+        elif num_asts == 0:
+            logger.info("get_signature: No implementations found found for %s")
+
+    @lru_cache
+    def _ast_to_signature(self, ast: FunctionDef) -> inspect.Signature:
+        parameters = [inspect.Parameter(name,
+                                        annotation=ty,
+                                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD
+                                        ) for
+                      name, ty
+                      in self._ast_to_annotations(ast) if name != "return"]
+        return inspect.Signature(parameters, return_annotation=self.get_annotations()["return"], __validate_parameters__=False)
 
     @lru_cache()
     def _ast_to_annotations(self, ast: FunctionDef)-> List[Tuple[str, str]]:
@@ -232,17 +239,17 @@ class InstanceMethodDoc(BaseDoc):
 
     @cached_property
     def ast(self) -> Optional[FunctionDef]:
-        if not self.overloaded:
+        if len(self.possible_asts) == 1:
             return self.possible_asts[0]
         else:
             return None
 
     @cached_property
     def __doc__(self) -> str:
-        if not self.overloaded:
+        if self.ast:
             return get_docstring(self.ast) or "NO JAVADOC AVAILABLE"
         else:
-            msg = "%s() has multiple implementations, not handled yet" % self.name
+            msg = "%s() has multiple or no implementations, not handled yet" % self.name
             logger.info(msg)
             return msg
 

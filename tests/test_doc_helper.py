@@ -184,3 +184,8 @@ def test_module_on_object():
 
 def test_module_on_instance_method():
     nose.tools.assert_equal(bridge_namespace["currentProgram"].getFunctionManager.__module__, "ghidra.program.database")
+
+
+def test_interface_without_init():
+    Analyzer = bridge_namespace["ghidra"].app.services.Analyzer
+    result = inspector.info(Analyzer)
